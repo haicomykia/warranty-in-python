@@ -1,12 +1,65 @@
+import sys
+import enum
 from datetime import date
-from src.Warranty.WarrantyEnum import Warranties as warranty
+from dateutil.relativedelta import relativedelta
+
+
+class Warranties(enum.Enum):
+    """
+    保証の列挙体
+    """
+    BASIC = (101, "ベーシック保証", 12)
+    THREE_YEARS = (201, "3年保証", 36)
+    FIVE_YEARS = (301, "5年保証", 60)
+
+    def __init__(self, code: int, warranty_name: str, terms: int):
+        """
+        コンストラクタ
+        :param code: コード
+        :param warranty_name: 名前
+        :param terms: 保証期間（月数）
+        """
+        self.code = code
+        self.warranty_name = warranty_name
+        self.terms = terms
+
+    def __eq__(self, other):
+        return self.code == other.code \
+               and self.warranty_name == other.warranty_name \
+               and self.terms == other.terms
+
+    def __str__(self):
+        return self.warranty_name
+
+    def get_warranty_period(self):
+        """
+        保証期間を返す
+        :return: 保証期間
+        """
+        return relativedelta(months=self.terms)
+
+    def is_against(self, customer) -> bool:
+        """
+        顧客が保証に加入していて保証期間内か？
+        :param customer: 顧客オブジェクト
+        :return: 顧客が保証に加入していて保証期間内か？
+        """
+        if not customer.has_subscribed(self):
+            return False
+
+        if not customer.start_date_has_passed():
+            return False
+
+        return not customer.expired_warranty()
 
 
 class Customer:
     """
     顧客クラス
     """
-    def __init__(self, customer_name: str, start_date: date, warranty: warranty):
+
+    def __init__(self, customer_name: str, start_date: date,
+                 warranty: Warranties):
         """
         コンストラクタ
         :param customer_name: 顧客名
@@ -25,29 +78,33 @@ class Customer:
         """
         return self.warranty.get_warranty_period() + self.start_date
 
-    def has_subscribed(self, warranty: warranty) -> bool:
+    def has_subscribed(self, warranty: Warranties) -> bool:
         """
-        保証期間内か？
+        顧客が保証に加入しているか？
         :param warranty: 保証enumのメンバ
         :return: 当該保証に加入していて期間内か？
         """
-        if self.warranty != warranty:
-            return False
-
-        # 解約していない
-        if self.cancel_date is None:
-            if self.get_end_of_warranty() >= date.today() >= self.start_date:
-                return True
-            return False
-
-        # 解約
-        if self.cancel_date > date.today() >= self.start_date:
-            return True
-
-        return False
+        return self.warranty == warranty
 
     def cancel_warranty(self) -> None:
         """
         保証を解約
         """
         self.cancel_date = date.today()
+
+    def start_date_has_passed(self):
+        """
+        保証開始日を過ぎているか？
+        :return: 保証開始日を過ぎているか？
+        """
+        return self.start_date <= date.today()
+
+    def expired_warranty(self):
+        """
+        保証切れか？
+        :return: 保証期間終了日を過ぎているか？
+        """
+        if self.cancel_date is None:
+            return self.get_end_of_warranty() < date.today()
+
+        return self.cancel_date <= date.today()

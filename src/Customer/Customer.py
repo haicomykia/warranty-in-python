@@ -31,26 +31,12 @@ class Warranties(enum.Enum):
     def __str__(self):
         return self.warranty_name
 
-    def get_warranty_period(self):
+    def get_warranty_period(self) -> relativedelta:
         """
         保証期間を返す
         :return: 保証期間
         """
         return relativedelta(months=self.terms)
-
-    def is_against(self, customer) -> bool:
-        """
-        顧客が保証に加入していて保証期間内か？
-        :param customer: 顧客オブジェクト
-        :return: 顧客が保証に加入していて保証期間内か？
-        """
-        if not customer.has_subscribed(self):
-            return False
-
-        if not customer.start_date_has_passed():
-            return False
-
-        return not customer.expired_warranty()
 
 
 class Customer:
@@ -92,14 +78,14 @@ class Customer:
         """
         self.cancel_date = date.today()
 
-    def start_date_has_passed(self):
+    def start_date_has_passed(self) -> bool:
         """
         保証開始日を過ぎているか？
         :return: 保証開始日を過ぎているか？
         """
         return self.start_date <= date.today()
 
-    def expired_warranty(self):
+    def expired_warranty(self) -> bool:
         """
         保証切れか？
         :return: 保証期間終了日を過ぎているか？
@@ -108,3 +94,17 @@ class Customer:
             return self.get_end_of_warranty() < date.today()
 
         return self.cancel_date <= date.today()
+
+    def is_under(self, warranty: Warranties) -> bool:
+        """
+        顧客が保証に加入していて保証期間内か？
+        :param warranty: 保証の列挙体
+        :return: 顧客が保証に加入していて保証期間内か？
+        """
+        if not self.has_subscribed(warranty):
+            return False
+
+        if not self.start_date_has_passed():
+            return False
+
+        return not self.expired_warranty()
